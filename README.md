@@ -24,18 +24,26 @@ Current features (v1.0.1)-
 - User-friendly output
 - Resolving A records (IPv4)
 
-![](https://i.postimg.cc/596nWXrv/image.png)
+![](https://i.postimg.cc/J0SBWgG8/image.png)
+
+![](https://i.postimg.cc/wBHy3RkC/image.png)
 
 - Virtual hostname enumeration
 - Reverse DNS lookup
-- Subdomains are accepted as input
 
-![](https://i.postimg.cc/gcyMzCDq/image.png)
+![](https://i.postimg.cc/rsRKgJgP/image.png)
+
+![](https://i.postimg.cc/wx7GpGvs/image.png)
 
 - Detects wildcard subdomains (for bruteforcing)
 - Basic TCP port scanning
+- Subdomains are accepted as input
 
-![](https://i.postimg.cc/Vk31BmS4/image.png)
+![](https://i.postimg.cc/2SZYS5Sh/image.png)
+
+- Export results to JSON file
+
+![](https://i.postimg.cc/9fv3ZYRM/image.png)
 
 A few features are work in progress. See [Planned features](#planned-features) for more details.
 
@@ -61,7 +69,7 @@ Or, you can just download the binary from the [release page](https://github.com/
 # Usage
 
 ```
-./domainim <domain> [--ports=<ports> | -p] [--dns=<dns> | -d:<dns>] [--wordlist=<filename> | -l:<filename>] [--throttle=<int> | -t:<int>]
+./domainim <domain> [--ports=<ports> | -p:<ports>] [--wordlist=<filename> | l:<filename> [--rps=<int> | -r:<int>]] [--dns=<dns> | -d:<dns>] [--out=<filename> | -o:<filename>]
 ```
 - `<domain>` is the domain to be enumerated. It can be a subdomain as well.
 - `-- ports | -p` is a string speicification of the ports to be scanned. It can be one of the following-
@@ -76,29 +84,50 @@ Or, you can just download the binary from the [release page](https://github.com/
   - `a.b.c.d` - Use DNS server at `a.b.c.d` on port 53
   - `a.b.c.d#n` - Use DNS server at `a.b.c.d` on port `e`
 - `--wordlist | -l` - Path to the wordlist file. This is used for bruteforcing subdomains. If the file is invalid, bruteforcing will be skipped. You can get a wordlist from [SecLists](https://github.com/danielmiessler/SecLists/tree/master/Discovery/DNS). A wordlist is also provided in the [release page](https://github.com/pptx704/domainim/releases).
-- `--throttle | -t` - This is the time (in ms) where 1024 requests will be spread out. i.e. for value `1000`, 1024 requests will be made in 1s, each having different delay before processing. The lesser the faster, bruteforcing will be. Set this to a higher value if you are getting rate limited. Default value is `1000`.
+- `--rps | -r` - Number of requests to be made per second during bruteforce. The default value is `1024 req/s`. It is to be noted that, DNS queries are made in batches and next batch is made only after the previous one is completed. Since quries can be rate limited, increasing the value does not always guarantee faster results.
+- `--out | -o` - Path to the output file. The output will be saved in JSON format. The filename must end with `.json`.
 
 **Examples**
 - `./domainim nmap.org --ports=all`
 - `./domainim google.com --ports=none --dns=8.8.8.8#53`
-- `./domainim pptx704.com --ports=t100`
+- `./domainim pptx704.com --ports=t100 --wordlist=wordlist.txt --rps=1500`
+- `./domainim pptx704.com --ports=t100 --wordlist=wordlist.txt --outfile=results.json`
 - `./domainim mysite.com --ports=t50,5432,7000-9000 --dns=1.1.1.1`
 
 The help menu can be accessed using `./domainim --help` or `./domainim -h`.
 ```
 Usage:
-    domainim <domain> [--ports=<ports> | -p:<ports>] [--wordlist=<filename> | l:<filename>] [--dns=<dns> | -d:<dns>] [--throttle=<int> | -t:<int>]
+    domainim <domain> [--ports=<ports> | -p:<ports>] [--wordlist=<filename> | l:<filename> [--rps=<int> | -r:<int>]] [--dns=<dns> | -d:<dns>] [--out=<filename> | -o:<filename>]
     domainim (-h | --help)
+
 Options:
     -h, --help              Show this screen.
     -p, --ports             Ports to scan. [default: `none`]
                             Can be `all`, `none`, `t<n>`, single value, range value, combination
     -l, --wordlist          Wordlist for subdomain bruteforcing. Bruteforcing is skipped for invalid file.
     -d, --dns               IP and Port for DNS Resolver. Should be a valid IPv4 with an optional port [default: system default]
-    -t, --throttle          Time (in ms) needed per 1024 DNS query [default: 1000]
+    -r, --rps               DNS queries to be made per second [default: 1024 req/s]
+    -o, --out               JSON file where the output will be saved. Filename must end with `.json`
+
 Examples:
-    domainim domainim.com -p:t500 -l:wordlist.txt --dns:1.1.1.1#53
-    domainim sub.domainim.com --ports=all --dns:8.8.8.8 -t:1500
+    domainim domainim.com -p:t500 -l:wordlist.txt --dns:1.1.1.1#53 --out=results.json
+    domainim sub.domainim.com --ports=all --dns:8.8.8.8 -t:1500 -o:results.json
+```
+
+The JSON schema for the results is as follows-
+
+```json
+[
+  {
+    "subdomain": string,
+    "data": [
+      "ipv4": string,
+      "vhosts": [string],
+      "reverse_dns": string,
+      "ports": [int]
+    ]
+  }
+]
 ```
 
 # Contributing
@@ -108,12 +137,12 @@ Contributions are welcome. Feel free to open a pull request or an issue.
 - [x] TCP port scanning
 - [ ] UDP port scanning support
 - [ ] Resolve AAAA records (IPv6)
-- [ ] Force bruteforcing (even if wildcard subdomain is found)
 - [x] Custom DNS server
-- [x] Add more engines for subdomain enumeration (bruteforcing added)
-- [ ] File output (probably CSV or JSON)
+- [x] Add bruteforcing subdomains using a wordlist
+- [ ] Force bruteforcing (even if wildcard subdomain is found)
+- [ ] Add more engines for subdomain enumeration
+- [x] File output (JSON)
 - [ ] Multiple domain enumeration
-- [ ] Local network scanning
 - [ ] Dir and File busting
 
 ## Others
@@ -144,7 +173,7 @@ But previously while testing, I found cases where not all IPs are shared by same
 
 ![](https://i.postimg.cc/q7PjB8NW/image.png)
 
-DNS server might have some sort of rate limiting. That's why I added random delays (between 0-300ms) for IPv4 resolving per query. This is to not make the DNS server get all the queries at once but rather in a more natural way. For bruteforcing method, the value is between 0-1000ms by default but that can be changed using `--throttle | -t` flag.
+DNS server might have some sort of rate limiting. That's why I added random delays (between 0-300ms) for IPv4 resolving per query. This is to not make the DNS server get all the queries at once but rather in a more natural way. For bruteforcing method, the value is between 0-1000ms by default but that can be changed using `--rps | -t` flag.
 
 One particular limitation that is bugging me is that the DNS resolver would not return all the IPs for a domain. So it is necessary to make multiple queries to get all (or most) of the IPs. But then again, it is not possible to know how many IPs are there for a domain. I still have to come up with a solution for this. Also, `nim-ndns` doesn't support CNAME records. So, if a domain has a CNAME record, it will not be resolved. I am waiting for a response from the author for this.
 

@@ -1,5 +1,5 @@
 import helpers
-import std/[terminal, strutils, tables]
+import std/[terminal, strutils, tables, json]
 import modules/[iputils, subfinder]
 
 proc printResults*(subdomains: seq[Subdomain], ips: Table[string, IPv4]) =
@@ -28,3 +28,27 @@ proc printResults*(subdomains: seq[Subdomain], ips: Table[string, IPv4]) =
             else:
                 styledEcho "    ↳ ", styleBright, "Open Ports: ", resetStyle, fgGreen, ports.join(", ")
             echo " "
+
+proc generateJsonResults(subdomains: seq[Subdomain], ips: Table[string, IPv4]): string =
+    var res = newJArray()
+
+    for s in subdomains:
+        var sub: JsonNode = newJObject()
+        sub["subdomain"] = %s.url
+        sub["data"] = newJArray()
+        if not s.isAlive:
+            res.add(sub)
+            continue
+        for ip in s.ipv4:
+            var subData = newJObject()
+            subData["ipv4"] = %ip
+            subData["vhosts"] = %ips[ip].vhostnames
+            subData["reverse_dns"] = %ips[ip].rdns
+            subData["ports"] = %ips[ip].openPorts
+            sub["data"].add(subData)
+        res.add(sub)
+    return res.pretty
+
+proc saveResults*(subdomains: seq[Subdomain], ips: Table[string, IPv4], outfile: File) =
+    let outstr = generateJsonResults(subdomains, ips)
+    outfile.write(outstr)

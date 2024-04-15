@@ -23,7 +23,7 @@ let
         "Content-Type": "application/x-www-form-urlencoded"
     }
 
-    client: HttpClient = newHttpClient(userAgent, timeout=20000) # 20s timeout
+    client: HttpClient = newHttpClient(userAgent, timeout=45000) # 45s timeout
 
 client.headers = newHttpHeaders(headers)
 
@@ -53,12 +53,16 @@ proc makeRequest(reqMethod: string, url: string): Response =
     if reqMethod == "GET":
         result = client.get(ddUrl)
     else:
-        var resp: Response
+        var
+            resp: Response
+            status: int
         try:
             resp = makeRequest("GET", ddUrl)
             setCookie(resp)
-        except KeyError, TimeoutError:
-            raise newException(WebpageParseError, "dnsdumpster.com is not responding as expected")
+        except KeyError:
+            raise newException(WebpageParseError, "Could not fetch cookie from dnsdumpster.com")
+        except TimeoutError:
+            raise newException(WebpageParseError, "dnsdumpster.com request timeout")
 
         var data = MultipartData()
         data["csrfmiddlewaretoken"] = getCSRFToken(resp)
@@ -67,9 +71,10 @@ proc makeRequest(reqMethod: string, url: string): Response =
         try:
             result = client.post(ddUrl, multipart = data)
         except TimeoutError:
-            raise newException(WebpageParseError, "dnsdumpster.com is not responding as expected")
-        if parseInt(result.status.split()[0]) >= 400:
-            raise newException(WebpageParseError, "dnsdumpster.com is not responding as expected")
+            raise newException(WebpageParseError, "dnsdumpster.com is request timeout")
+        status = parseInt(result.status.split()[0])
+        if status >= 400:
+            raise newException(WebpageParseError, "dnsdumpster.com responded with status code " & $status)
 
 proc getHostTable(str: string): string =
     try:

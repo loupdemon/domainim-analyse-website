@@ -1,4 +1,4 @@
-import std/[osproc,strutils,sequtils,algorithm]
+import std/[osproc, strutils, sequtils, algorithm]
 import regex
 
 type

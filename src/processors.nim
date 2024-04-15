@@ -1,7 +1,7 @@
 # Module processors
 
 import modules/[subfinder, vhostname, iputils, scanner, scannerutils]
-import std/[sequtils, tables, posix, strutils, syncio, algorithm]
+import std/[sequtils, tables, posix, strutils, syncio, algorithm, math]
 import helpers
 
 # Change file descriptor limit
@@ -10,13 +10,14 @@ discard getrlimit(RLIMIT_NOFILE, rlimit)
 rlimit.rlim_cur = rlimit.rlim_max-1
 discard setrlimit(RLIMIT_NOFILE, rlimit)
 
-proc processSubdomains*(domain: string, dnsStr: string, sbList: string, throttle: int): seq[Subdomain] =
+proc processSubdomains*(domain: string, dnsStr: string, sbList: string, rps: int): seq[Subdomain] =
     var 
         subdomains: seq[string]
         dnsStr = dnsStr
         sbList = sbList
         subFile: File
         bruteSubs: seq[Subdomain]
+        throttle: int = round(1024*1000/rps).toInt
     printMsg(info, "[ ] Fetching subdomains (engine: dnsdumpster.com)")
     try:
         subdomains = getDDSubs(domain)

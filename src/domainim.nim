@@ -2,7 +2,7 @@ import std/[parseopt, os, strformat, terminal, strutils]
 import processors, helpers, results
 
 let 
-    usage = fmt"Usage ./{getAppFilename().extractFilename} <domain> [--ports=<ports> | -p:ports] [--wordlist=<filename>] [--dns=<ip>[#port]] [--throttle=<int>]"
+    usage = fmt"Invalid argument(s). Use ./{getAppFilename().extractFilename} --help for usage."
     banner = """
 
 ▓█████▄  ▒█████   ███▄ ▄███▓ ▄▄▄       ██▓ ███▄    █  ██▓ ███▄ ▄███▓
@@ -18,22 +18,37 @@ let
 
 """
 
-proc startChecking(domain: string, portStr: string, dnsStr: string, sbList: string, throttle: int) =
-    var ports: seq[int]
+proc startChecking(domain: string, portStr: string, dnsStr: string, sbList: string, rps: int, filename: string) =
+    var
+        outfile: File
+        writeable: bool = true
+        ports: seq[int]
     try:
         ports = processPortString(portStr)
     except:
         echo "Invalid port specification. Example of proper form: 't10,5432,53,100-150'"
-
     echo banner
     styledEcho "Provided domain: ", styleUnderscore, domain
-    let subdomains = processSubdomains(domain, dnsStr, sbList, throttle)
+
+    let subdomains = processSubdomains(domain, dnsStr, sbList, rps)
     if len(subdomains) == 0:
+        printMsg(error, fmt"[!] No subdomains found for the {domain}")
         return
-    var iptable = processVHostNames(subdomains)
+
     printPorts(portStr)
+    var iptable = processVHostNames(subdomains)
     iptable = processOpenPorts(iptable, ports)
-    printResults(subdomains, iptable)
+
+    if not filename.isEmptyOrWhitespace and not outfile.open(filename, fmWrite):
+        printOutfile(false, filename)
+        writeable = false
+
+    if not filename.isEmptyOrWhitespace and writeable:
+        printOutfile(true, filename)
+        saveResults(subdomains, iptable, outfile)
+        printUpdate(success, fmt"[+] Results saved to {filename}")
+    else:
+        printResults(subdomains, iptable)
     
 
 proc main =
@@ -43,7 +58,8 @@ proc main =
         domain: string
         dns = ""
         sbList = ""
-        throttle: int = 1000
+        rps: int = 1000
+        outfile = ""
     if paramCount() == 0:
         echo usage
         return
@@ -64,11 +80,17 @@ proc main =
                 dns = p.val
             of "wordlist":
                 sbList = p.val
-            of "throttle":
+            of "rps":
                 try:
-                    throttle = p.val.parseInt
+                    rps = p.val.parseInt
                 except:
                     echo usage
+                    return
+            of "out":
+                if p.val.endsWith(".json"):
+                    outfile = p.val
+                else:
+                    echo fmt"Invalid output filename {p.val}. File must be a json file."
                     return
             of "help":
                 printHelp()
@@ -84,11 +106,17 @@ proc main =
                 dns = p.val
             of "l":
                 sbList = p.val
-            of "t":
+            of "r":
                 try:
-                    throttle = p.val.parseInt
+                    rps = p.val.parseInt
                 except:
                     echo usage
+                    return
+            of "o":
+                if p.val.endsWith(".json"):
+                    outfile = p.val
+                else:
+                    echo fmt"Invalid output filename {p.val}. File must be a json file."
                     return
             of "h":
                 printHelp()
@@ -96,7 +124,8 @@ proc main =
             else:
                 echo usage
                 return
-    startChecking(domain, ports, dns, sbList, throttle)
+
+    startChecking(domain, ports, dns, sbList, rps, outfile)
 
 when isMainModule:
     main()

@@ -7,7 +7,7 @@ import "../iputils"
 type
     Subdomain* = object
         url*: string
-        isAlive*: bool
+        isAlive*: bool # consists 1 or more ip4 addresses
         ipv4*: seq[string]
     
     WebpageParseError* = object of CatchableError
@@ -67,7 +67,7 @@ proc createDnsClient*(dnsStr: string): DnsClient =
     else:
         result = initDnsClient(dnsStr)
 
-proc resolveDomain*(subdomain: string, client: DnsClient, throttle: int = 300): Future[(string, seq[string])] {.async.} =
+proc resolveDomain*(subdomain: string, client: DnsClient, throttle: int = 1000): Future[(string, seq[string])] {.async.} =
     await sleepAsync(rand(throttle))
     let allIpv4 = await asyncResolveIpv4(client, subdomain, 1000)
     var validIPv4s: seq[string] = @[]
