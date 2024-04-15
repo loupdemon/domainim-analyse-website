@@ -35,13 +35,14 @@ proc processSubdomains*(domain: string, dnsStr: string, sbList: string, throttle
     except:
         dnsStr = ""
         printMsg(neutral, "[!] Given DNS Resolver seems to be invalid. Using default DNS server.")
-    if subFile.open(sbList):
-        subFile.close
-    else:
-        sbList = ""
-        printMsg(error, "[!] Could not open wordlist. Bruteforcing will be skipped.")
-
     
+    if not sbList.isEmptyOrWhitespace:
+        if subFile.open(sbList):
+            subFile.close
+        else:
+            sbList = ""
+            printMsg(error, "[!] Could not open wordlist. Bruteforcing will be skipped.")
+
     if sbList != "":
         printMsg(info, "[ ] Bruteforcing subdomains. This might take some time.")
         try:
