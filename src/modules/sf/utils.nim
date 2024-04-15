@@ -9,6 +9,8 @@ type
         url*: string
         isAlive*: bool
         ipv4*: seq[string]
+    
+    WebpageParseError* = object of CatchableError
 
 proc newSubdomain*(url:string, ipv4:seq[string] = @[]): Subdomain =
     Subdomain(url: url, isAlive: bool(len(ipv4) != 0), ipv4: ipv4)
@@ -96,5 +98,3 @@ proc resolveAll*(subdomains: seq[string], domain: string, dnsStr: string = ""): 
     
     result = tableToSubdomains(resTable)
     result.sort()
-
-type WebpageParseError* = object of CatchableError

@@ -1,6 +1,6 @@
 # Module crtsh
 
-import std/[httpclient, strformat, net]
+import std/[httpclient, strformat, net, json]
 import regex
 import utils
 
@@ -25,22 +25,34 @@ client.headers = newHttpHeaders(headers)
 
 proc makeRequest(url: string): Response =
     try:
-        let paramUrl = fmt"{crtUrl}?Identity={url}"#&exclude=expired"
+        let paramUrl = fmt"{crtUrl}?Identity={url}&output=json"#&exclude=expired"
         result = client.get(paramUrl)
     except TimeoutError:
         raise newException(WebpageParseError, "crt.sh is not responding as expected")
 
 
 proc getARecords(response: Response, target: string): seq[string] =
-    for i in findAll(response.body, rowRegEx):
-        var data = response.body[i.boundaries]
-        try: 
-            data = data[findAll(data, subdomainRegEx)[0].group(0)]
-            var sub = data
-            if sub notin result:
-                result.add(sub)
-        except IndexDefect:
-            raise newException(WebpageParseError, "A records not found (engine: crt.sh)")
+    let data = parseJson(response.body)
+    # [
+    #     {
+    #         "issuer_ca_id": 247115,
+    #         "issuer_name": "C=US, O=Amazon, CN=Amazon RSA 2048 M02",
+    #         "common_name": "*.cloud.wazuh.com",
+    #         "name_value": "*.cloud.wazuh.com",
+    #         "id": 12479016921,
+    #         "entry_timestamp": "2024-03-25T00:25:02.85",
+    #         "not_before": "2024-03-25T00:00:00",
+    #         "not_after": "2025-04-23T23:59:59",
+    #         "serial_number": "0b1ffe9a1e1c6408e87fb1810b953559",
+    #         "result_count": 2
+    #     }
+    # ]
+
+    # traverse the json and get the name_value
+    for entry in data:
+        if entry.hasKey("name_value"):
+            result.add(entry["name_value"].str)
+
     result = cleanAll(result, target) # crtsh sometimes provide unnecessary urls. cleaning is needed here
     if len(result) == 0:
         raise newException(WebpageParseError, "A records not found (engine: crt.sh)")
