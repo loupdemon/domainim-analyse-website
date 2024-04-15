@@ -33,9 +33,10 @@ Current features (v1.0.1)-
 
 ![](https://i.postimg.cc/rsRKgJgP/image.png)
 
+- Detects wildcard subdomains (for bruteforcing)
+
 ![](https://i.postimg.cc/wx7GpGvs/image.png)
 
-- Detects wildcard subdomains (for bruteforcing)
 - Basic TCP port scanning
 - Subdomains are accepted as input
 
@@ -116,7 +117,7 @@ Examples:
 
 The JSON schema for the results is as follows-
 
-```json
+```
 [
   {
     "subdomain": string,
@@ -129,6 +130,8 @@ The JSON schema for the results is as follows-
   }
 ]
 ```
+
+Example json for `nmap.org` can be found [here](https://pastebin.com/iqNiNtsT).
 
 # Contributing
 Contributions are welcome. Feel free to open a pull request or an issue.
